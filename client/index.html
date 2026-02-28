@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+    <meta name="theme-color" content="#18181b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Remote tmux session manager for Claude Code" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <title>TmuxFly</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="bg-zinc-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100 font-sans antialiased">
+    <div id="app" class="app-shell flex flex-col max-w-2xl mx-auto">
+
+      <!-- Header -->
+      <header class="safe-pad-top flex items-center justify-between px-4 py-3 border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <div class="flex items-center gap-2">
+          <svg width="24" height="24" class="w-6 h-6 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 17l6-6-6-6M12 19h8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="text-base font-semibold tracking-tight">TmuxFly</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <span id="ws-status" class="flex items-center gap-1.5 text-xs font-medium text-zinc-400">
+            <span id="ws-dot" class="w-2 h-2 rounded-full bg-zinc-400"></span>
+            <span id="ws-label">Offline</span>
+          </span>
+        </div>
+      </header>
+
+      <!-- Main content -->
+      <main id="main-content" class="flex-1 overflow-hidden relative">
+        <!-- Tmux View -->
+        <section id="view-tmux" class="view absolute inset-0 flex flex-col">
+          <div id="tmux-list-view" class="flex-1 flex flex-col min-h-0">
+            <div class="flex items-center justify-between px-4 py-2 bg-zinc-100 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700/50">
+              <span class="flex items-center gap-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                Sessions
+                <span id="tmux-stale-icon" class="hidden text-zinc-400 dark:text-zinc-500" title="Cached — tap refresh to update">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                </span>
+              </span>
+              <div class="flex items-center gap-1">
+                <button id="btn-refresh-tmux" class="p-2.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors" title="Refresh" aria-label="Refresh sessions">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+                </button>
+                <button id="btn-add-tmux" class="p-2.5 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors" title="New session" aria-label="New session">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+              </div>
+            </div>
+            <div id="tmux-new-bar" class="hidden flex items-center gap-2 px-4 py-2 bg-zinc-50 dark:bg-zinc-800/30 border-b border-zinc-200 dark:border-zinc-700/50">
+              <input id="tmux-new-name" type="text" placeholder="Session name"
+                class="flex-1 px-3 py-1.5 text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all" />
+              <button id="btn-new-tmux" class="shrink-0 px-3 py-1.5 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover transition-colors">Create</button>
+              <button id="btn-cancel-tmux" class="shrink-0 p-2 rounded-md text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors" aria-label="Cancel">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div id="tmux-sessions" class="flex-1 overflow-y-auto p-4 space-y-2 min-h-0"></div>
+            <div id="supervisor-log-panel" class="hidden border-t border-zinc-200 dark:border-zinc-700/50">
+              <button id="btn-toggle-supervisor-log" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-100 dark:bg-zinc-800/50 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700/50 transition-colors">
+                <span class="flex items-center gap-1.5">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                  AI Supervisor Log
+                </span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+              <div id="supervisor-log-entries" class="hidden max-h-48 overflow-y-auto px-4 py-2 space-y-1 text-xs font-mono bg-zinc-50 dark:bg-zinc-900/50"></div>
+            </div>
+          </div>
+          <div id="tmux-terminal-view" class="flex-1 flex flex-col hidden">
+            <div class="tmux-toolbar flex items-center justify-between px-4 py-1.5 bg-zinc-100 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700/50">
+              <div class="flex items-center gap-2 min-w-0">
+                <span id="tmux-status-dot" class="w-2 h-2 rounded-full bg-accent shrink-0"></span>
+                <span id="tmux-attached-name" class="text-sm font-medium text-zinc-500 dark:text-zinc-400 truncate"></span>
+              </div>
+              <div class="flex items-center gap-1">
+                <button id="btn-tmux-copy" class="btn-accent" aria-label="Copy terminal content">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+                <button id="btn-tmux-commands" class="btn-secondary hidden" aria-label="Tmux commands">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                </button>
+                <button id="btn-detach-tmux" class="btn-secondary">
+                  Detach
+                </button>
+              </div>
+            </div>
+            <div id="tmux-window-tabs" class="hidden flex overflow-x-auto gap-1 px-3 py-1.5 bg-zinc-100 dark:bg-zinc-800/50 border-b border-zinc-200 dark:border-zinc-700/50"></div>
+            <div id="tmux-terminal-container" class="flex-1 min-h-0 overflow-hidden bg-zinc-950"></div>
+            <div id="tmux-extra-keys" class="shrink-0"></div>
+          </div>
+        </section>
+
+        <!-- Settings View -->
+        <section id="view-settings" class="view absolute inset-0 flex flex-col hidden overflow-y-auto">
+          <div class="p-4 space-y-6">
+            <!-- Theme -->
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Appearance</h3>
+              <div class="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <span class="text-sm font-medium">Dark Mode</span>
+                <button id="btn-theme-toggle" class="relative w-11 h-6 rounded-full bg-zinc-300 dark:bg-accent transition-colors" role="switch">
+                  <span id="theme-toggle-dot" class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform dark:translate-x-5"></span>
+                </button>
+              </div>
+              <div class="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium">Font Size</span>
+                  <span id="font-size-label" class="text-xs font-mono text-zinc-400 dark:text-zinc-500">14px</span>
+                </div>
+                <input id="setting-font-size" type="range" min="10" max="24" step="1" value="14"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-zinc-200 dark:bg-zinc-700 accent-accent" />
+              </div>
+            </div>
+
+            <!-- Usage -->
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Usage</h3>
+              <div id="usage-container" class="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-sm font-medium">Claude Code</span>
+                  <button id="btn-refresh-usage" class="px-2.5 py-1.5 text-xs font-medium rounded-md bg-accent text-white hover:bg-accent-hover transition-colors" aria-label="Refresh usage data">Refresh</button>
+                </div>
+                <div id="usage-content" class="text-sm text-zinc-500 dark:text-zinc-400">
+                  Tap Refresh to load usage data
+                </div>
+              </div>
+            </div>
+
+            <!-- Tmux -->
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Tmux</h3>
+              <div class="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-sm font-medium">Thumbnail Height</span>
+                  <span id="thumb-height-label" class="text-xs font-mono text-zinc-400 dark:text-zinc-500">50%</span>
+                </div>
+                <input id="setting-thumb-height" type="range" min="0" max="100" step="5" value="50"
+                  class="w-full h-1.5 rounded-full appearance-none cursor-pointer bg-zinc-200 dark:bg-zinc-700 accent-accent" />
+                <p class="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1.5">0% = hide thumbnails</p>
+              </div>
+              <div class="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <span class="text-sm font-medium">Thumbnail Refresh</span>
+                <select id="setting-thumb-refresh"
+                  class="px-2 py-1 text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-700/50 outline-none focus:border-accent focus:ring-1 focus:ring-accent/30">
+                  <option value="0">Off</option>
+                  <option value="5">5s</option>
+                  <option value="10">10s</option>
+                  <option value="30">30s</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Connection -->
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Connection</h3>
+              <div class="space-y-3 p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <div>
+                  <label class="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">Server URL</label>
+                  <input id="setting-server-url" type="url" placeholder="ws://127.0.0.1:3090/ws"
+                    class="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-700/50 outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 font-mono" />
+                </div>
+                <div>
+                  <label class="block text-xs text-zinc-500 dark:text-zinc-400 mb-1">Auth Token</label>
+                  <input id="setting-token" type="password" placeholder="Enter token"
+                    class="w-full px-3 py-2 text-sm rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-700/50 outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 font-mono" />
+                </div>
+                <button id="btn-connect" class="w-full px-4 py-2 text-sm font-medium rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors">
+                  Connect
+                </button>
+              </div>
+            </div>
+
+            <!-- About -->
+            <div class="space-y-2">
+              <h3 class="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">About</h3>
+              <div class="p-3 rounded-lg bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                  TmuxFly v1.0.0<br/>
+                  Claude Local Mobile Bridge
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Tab bar -->
+      <nav id="app-nav" class="safe-pad-bottom flex border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+        <button class="tab-btn flex-1 flex flex-col items-center gap-1 py-2 pt-3 text-xs font-medium transition-colors active" data-tab="tmux">
+          <svg width="20" height="20" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 12h18M12 3v18" />
+          </svg>
+          Tmux
+        </button>
+        <button class="tab-btn flex-1 flex flex-col items-center gap-1 py-2 pt-3 text-xs font-medium transition-colors" data-tab="settings">
+          <svg width="20" height="20" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          Settings
+        </button>
+      </nav>
+    </div>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

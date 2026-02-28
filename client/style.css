@@ -1,0 +1,290 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* App shell — fixed to viewport, responds to keyboard via JS */
+  .app-shell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    /* JS will override bottom when keyboard is open */
+  }
+
+  /* Safe area padding — works on iOS (Dynamic Island/notch/home indicator) and Android */
+  .safe-pad-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .safe-pad-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Smooth theme transition */
+  html {
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Prevent overscroll bounce on mobile */
+  body {
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-300 dark:bg-zinc-700 rounded-full;
+  }
+
+  /* Select styling */
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2371717a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.25rem center;
+    padding-right: 1.5rem;
+  }
+}
+
+@layer components {
+  /* Tab button states */
+  .tab-btn {
+    @apply text-zinc-400 dark:text-zinc-500;
+  }
+  .tab-btn.active {
+    @apply text-accent;
+  }
+  @media (hover: hover) {
+    .tab-btn:not(.active):hover {
+      @apply text-zinc-600 dark:text-zinc-300;
+    }
+  }
+
+  /* Tmux session card — vertical layout so preview spans full width */
+  .tmux-card {
+    @apply flex flex-col gap-2 p-3 rounded-lg
+           bg-white dark:bg-zinc-800
+           border border-zinc-200 dark:border-zinc-700
+           transition-all;
+  }
+  @media (hover: hover) {
+    .tmux-card:hover {
+      @apply border-zinc-300 dark:border-zinc-600;
+    }
+  }
+
+  /* Tmux pane thumbnail — scaled-down miniature terminal */
+  .tmux-thumb-wrap {
+    @apply w-full rounded-md bg-zinc-950 overflow-hidden flex flex-col justify-end;
+    /* height set inline via thumbHeight setting */
+  }
+  .tmux-thumb {
+    @apply text-zinc-400 font-mono whitespace-pre;
+    font-size: 5px;
+    line-height: 1.3;
+    padding: 4px 5px;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* Button base — min 44px touch target (WCAG) */
+  .btn-sm {
+    @apply px-3 py-2.5 text-xs font-medium rounded-md transition-colors
+           inline-flex items-center justify-center;
+    min-height: 44px;
+  }
+  .btn-danger {
+    @apply btn-sm text-red-600 dark:text-red-400
+           border border-red-200 dark:border-red-900/50
+           hover:bg-red-50 dark:hover:bg-red-950/30;
+  }
+  .btn-secondary {
+    @apply btn-sm text-zinc-600 dark:text-zinc-300
+           border border-zinc-300 dark:border-zinc-600
+           hover:bg-zinc-100 dark:hover:bg-zinc-700;
+  }
+  .btn-accent {
+    @apply btn-sm bg-accent text-white hover:bg-accent-hover;
+  }
+
+  /* Toast notification — positioned below safe area (Dynamic Island / notch) */
+  .toast {
+    @apply fixed left-1/2 -translate-x-1/2 z-50
+           px-4 py-2.5 rounded-lg shadow-lg
+           text-sm font-medium
+           bg-zinc-800 dark:bg-zinc-200
+           text-white dark:text-zinc-800
+           transform transition-all duration-300;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+  }
+  .toast.error {
+    @apply bg-red-600 dark:bg-red-500 text-white dark:text-white;
+  }
+
+  /* Empty state */
+  .empty-state {
+    @apply flex flex-col items-center justify-center h-full
+           text-zinc-400 dark:text-zinc-500 text-sm text-center p-8;
+  }
+
+  /* Touch ripple effect */
+  .ripple-host {
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ripple-host .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.15;
+    pointer-events: none;
+    transform: scale(0);
+    animation: ripple-expand 0.5s ease-out forwards;
+  }
+  @keyframes ripple-expand {
+    to {
+      transform: scale(2.5);
+      opacity: 0;
+    }
+  }
+
+  /* Modal animations */
+  .modal-overlay {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .modal-overlay.open {
+    opacity: 1;
+  }
+  .modal-dialog {
+    transform: translateY(1rem);
+    opacity: 0;
+    transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.15s ease;
+  }
+  .modal-overlay.open .modal-dialog {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Bottom sheet (command palette) */
+  .modal-sheet {
+    @apply fixed inset-0 z-50 flex items-end justify-center bg-black/40;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .modal-sheet.open {
+    opacity: 1;
+  }
+  .modal-sheet-content {
+    @apply w-full max-w-lg rounded-t-2xl bg-white dark:bg-zinc-800
+           border-t border-zinc-200 dark:border-zinc-700 shadow-xl;
+    transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  .modal-sheet.open .modal-sheet-content {
+    transform: translateY(0);
+  }
+
+  /* Context menu animation + frosted glass */
+  .ctx-menu {
+    transform-origin: top right;
+    transform: scale(0.9);
+    opacity: 0;
+    transition: transform 0.15s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.1s ease;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  .ctx-menu.open {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Extra keys toolbar — horizontally scrollable, above keyboard */
+.extra-keys-bar {
+  @apply flex items-center gap-1 px-2 overflow-x-auto shrink-0
+         bg-zinc-100 dark:bg-zinc-800/80
+         border-t border-zinc-200 dark:border-zinc-700/50;
+  padding-top: 6px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom, 6px));
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+/* When keyboard is open, home-indicator padding is unnecessary */
+.kb-open .extra-keys-bar {
+  padding-bottom: 6px;
+}
+.extra-keys-bar::-webkit-scrollbar {
+  display: none;
+}
+.extra-key {
+  @apply shrink-0 px-2.5 py-1.5 text-xs font-medium rounded-md
+         bg-white dark:bg-zinc-700
+         text-zinc-700 dark:text-zinc-200
+         border border-zinc-200 dark:border-zinc-600
+         active:bg-zinc-200 dark:active:bg-zinc-600
+         transition-colors select-none;
+  min-width: 36px;
+  text-align: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.extra-key.mod-key {
+  @apply text-zinc-500 dark:text-zinc-400;
+}
+.extra-key.mod-active {
+  @apply bg-accent text-white border-accent;
+}
+
+/* Tmux toolbar — compact buttons */
+.tmux-toolbar .btn-sm {
+  min-height: 30px;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+/* Window tabs bar — hide scrollbar */
+#tmux-window-tabs {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+#tmux-window-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* xterm.js overrides */
+.xterm {
+  padding: 8px;
+}
+.xterm-viewport::-webkit-scrollbar {
+  width: 4px;
+}
+.xterm-viewport::-webkit-scrollbar-thumb {
+  @apply bg-zinc-600 rounded-full;
+}
+
+/* View transitions */
+.view {
+  transition: opacity 0.15s ease;
+}
+.view.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Accessibility: reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
